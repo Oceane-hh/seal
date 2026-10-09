@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEAL — Delayed capture for agent-to-merchant commerce</title>
+  <meta name="description" content="A mandate, a signed Counter, and delayed capture. Authorization releases, captures, or voids against those terms — not a dispute." />
+  <link rel="icon" href="brand/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+    :root {
+      --bg: #edf3fe;
+      --panel: #ffffff;
+      --ink: #15181a;
+      --dim: #5b677e;
+      --mute: #727f99;
+      --line: #d0ddf7;
+      --seal: #b1c0dd;
+      --go: #3c80ff;
+      --go-soft: #5792ff;
+      --on-go: #ffffff;
+      --midnight: #003185;
+      --accent: #b5e6e2;
+      --warn: #c56200;
+      --w: min(1200px, calc(100vw - 48px));
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; max-width: 100vw; overflow-x: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+      font-size: 17px;
+      line-height: 1.55;
+      overflow-x: hidden;
+      max-width: 100vw;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+    .wrap { width: var(--w); margin: 0 auto; }
+
+    .grain {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      opacity: .04;
+      mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+
+    nav {
+      position: sticky; top: 0; z-index: 30;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      width: 100%; max-width: 100vw; padding: 20px 40px;
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(16px);
+      border-bottom: .5px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 500; letter-spacing: .04em; }
+    .brand img { width: 26px; height: 26px; }
+    .nav-links { display: flex; gap: 32px; color: var(--dim); font-size: 15px; justify-self: center; font-weight: 400; }
+    .nav-links a:hover { color: var(--ink); }
+    .nav-cta {
+      background: var(--go); color: var(--on-go);
+      padding: 0 18px; height: 40px; line-height: 40px; border-radius: 999px;
+      font-size: 14px; font-weight: 500;
+      white-space: nowrap; flex-shrink: 0;
+      position: relative; z-index: 31;
+    }
+
+    .hero {
+      position: relative;
+      min-height: min(78vh, 720px);
+      display: grid;
+      grid-template-columns: 1fr 1.05fr;
+      align-items: center;
+      gap: 24px;
+      padding: 28px 0 8px;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      right: -8%; bottom: 8%;
+      width: 70%; height: 70%;
+      background: radial-gradient(ellipse at center, rgba(87,146,255,.28), transparent 62%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 32px 32px;
+      opacity: .12;
+      pointer-events: none;
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .kicker {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--go); margin-bottom: 16px; font-weight: 400;
+    }
+    h1 {
+      font-size: clamp(40px, 6.2vw, 80px);
+      font-weight: 500;
+      letter-spacing: -.04em;
+      line-height: .96;
+      max-width: min(12ch, 100%);
+    }
+    .lede { margin-top: 20px; color: var(--dim); max-width: 42ch; font-size: 18px; line-height: 1.5; overflow-wrap: break-word; }
+    .hero-actions { display: flex; gap: 10px; margin-top: 36px; flex-wrap: wrap; align-items: center; }
+    .btn-go {
+      background: var(--go); color: var(--on-go); border: 0;
+      height: 44px; padding: 0 22px; border-radius: 999px;
+      font-weight: 500; font-size: 15px; cursor: pointer;
+      display: inline-flex; align-items: center;
+    }
+    .btn-ghost {
+      border: 1px solid var(--line); color: var(--ink);
+      height: 44px; padding: 0 20px; border-radius: 999px; background: transparent;
+      font-weight: 400; font-size: 15px;
+      display: inline-flex; align-items: center;
+    }
+    .text-go { color: var(--go); font-weight: 500; font-size: 15px; }
+    .scene { position: relative; min-height: 360px; overflow: hidden; }
+    .scene img { width: 100%; max-width: 520px; display: block; margin-left: auto; }
+    .scene .caption { display: none; }
+    .rings { position: absolute; inset: auto 8% 18% 18%; height: 90px; pointer-events: none; }
+    .rings i {
+      position: absolute; left: 50%; top: 50%;
+      width: 40px; height: 12px; margin: -6px 0 0 -20px;
+      border: 1px solid rgba(60,128,255,.4); border-radius: 50%;
+      animation: ring 4.8s ease-out infinite;
+    }
+    .rings i:nth-child(2) { animation-delay: 1.6s; }
+    .rings i:nth-child(3) { animation-delay: 3.2s; }
+    @keyframes ring {
+      0% { transform: scale(1); opacity: .55; }
+      100% { transform: scale(7.2); opacity: 0; }
+    }
+    .seal-bob { animation: bob 5.2s ease-in-out infinite; transform-origin: 50% 70%; }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+      margin: 8px auto 0; width: var(--w);
+    }
+    .stat { padding: 32px 24px 30px; }
+    .stat + .stat { border-left: 1px solid var(--line); }
+    .stat b {
+      display: block; font-size: clamp(28px, 3vw, 36px);
+      font-weight: 500; letter-spacing: -.04em;
+    }
+    .stat span { display: block; margin-top: 10px; color: var(--mute); font-size: 13px; line-height: 1.4; max-width: 22ch; }
+
+    .marquee {
+      overflow: hidden; max-width: 100vw; border-bottom: 1px solid var(--line);
+      padding: 22px 0; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    }
+    .track { display: flex; gap: 56px; width: max-content; animation: drift 36s linear infinite; }
+    .track span { color: var(--mute); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+    @keyframes drift { to { transform: translateX(-50%); } }
+
+    .zone {
+      display: grid; grid-template-columns: 1fr 1fr;
+      min-height: 420px; border-bottom: 1px solid var(--line);
+    }
+    .zone.reverse { direction: rtl; }
+    .zone.reverse > * { direction: ltr; }
+    .zone-copy { padding: 80px 64px; display: flex; flex-direction: column; justify-content: center; }
+    .zone-copy h2 { font-size: clamp(30px, 3.6vw, 44px); font-weight: 500; letter-spacing: -.03em; line-height: 1.08; }
+    .zone-copy p { margin: 18px 0 28px; color: var(--dim); max-width: 40ch; font-size: 16px; line-height: 1.55; }
+    .zone-art {
+      margin: 32px;
+      border-radius: 28px;
+      background: var(--go);
+      position: relative;
+      overflow: hidden;
+    }
+    .zone-art img {
+      position: absolute;
+      height: 92%;
+      width: auto;
+      max-width: none;
+      left: -4%;
+      top: 10%;
+      filter: none;
+    }
+    .zone.ink .zone-art { background: #00265c; }
+    .zone.ink .zone-art img {
+      filter: none;
+      left: auto; right: -6%; top: 8%; height: 96%;
+      transform: scaleX(-1);
+    }
+    .zone.tile-ink .zone-art { background: #86b1ff; }
+    .zone.tile-ink .zone-art img {
+      filter: none;
+      left: auto; right: -8%; top: 6%; height: 102%;
+    }
+    .zone.ink {
+      background: var(--midnight);
+      color: var(--on-go);
+      border-bottom: 0;
+    }
+    .zone.ink .kicker { color: #86b1ff; }
+    .zone.ink .zone-copy p { color: #b1c0dd; }
+    .zone.ink .text-go { color: #fff; }
+
+    .hold {
+      padding: 96px 0 56px;
+    }
+    .hold h2 { font-size: clamp(30px, 3.6vw, 44px); font-weight: 500; letter-spacing: -.03em; max-width: 18ch; }
+    .board {
+      margin-top: 40px;
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      border: .5px solid var(--line); border-radius: 8px; overflow: hidden;
+    }
+    .cell {
+      padding: 24px 18px 28px; min-height: 176px;
+      border-right: .5px solid var(--line);
+      background: var(--panel);
+    }
+    .cell:last-child { border-right: 0; }
+    .cell .idx {
+      display: block; font-family: "JetBrains Mono", monospace;
+      font-size: 10px; letter-spacing: .14em; color: var(--mute); margin-bottom: 22px;
+    }
+    .cell.live .idx { color: var(--go); }
+    .cell.hot .idx { color: var(--warn); }
+    .exits { margin-top: 20px; color: var(--mute); max-width: 58ch; font-size: 14px; }
+    .cell b { display: block; font-size: 15px; font-weight: 500; }
+    .cell em { display: block; margin-top: 8px; font-style: normal; color: var(--mute); font-size: 13px; line-height: 1.45; }
+
+    .trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--line); border-top: .5px solid var(--line); }
+    .card { background: var(--panel); padding: 48px 40px 56px; min-height: 280px; }
+    .card .idx {
+      display: block; font-family: "JetBrains Mono", monospace;
+      font-size: 11px; letter-spacing: .14em; color: var(--go); margin-bottom: 28px;
+    }
+    .card h3 { font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+    .card p { margin-top: 12px; color: var(--dim); font-size: 16px; max-width: 36ch; }
+
+    .compare {
+      width: var(--w); margin: 0 auto; padding: 96px 0;
+      display: grid; grid-template-columns: 1.1fr .9fr; gap: 56px; align-items: center;
+    }
+    .compare h2 { font-size: clamp(30px, 3.6vw, 44px); font-weight: 500; letter-spacing: -.03em; }
+    .compare p { margin-top: 16px; color: var(--dim); max-width: 44ch; font-size: 16px; }
+    .split {
+      display: grid; grid-template-columns: 1fr 1fr; border: .5px solid var(--line); border-radius: 8px; overflow: hidden;
+    }
+    .split div { padding: 32px 28px; }
+    .split div:first-child { background: #f4f7ff; }
+    .split div:last-child { background: var(--midnight); color: #fff; border-left: 1px solid var(--line); }
+    .split div:last-child small { color: #86b1ff; }
+    .split small { display: block; font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--mute); margin-bottom: 10px; }
+    .split strong { display: block; font-size: 20px; font-weight: 500; }
+
+    .access {
+      background: var(--midnight);
+      color: #fff;
+      padding: 96px 0 80px;
+    }
+    .access .kicker { color: #86b1ff; }
+    .access .note { color: #b1c0dd; }
+    .access input[type="email"] {
+      background: #00265c; border-color: #5792ff66; color: #fff;
+    }
+    .access h2 { font-size: clamp(32px, 4vw, 52px); font-weight: 500; letter-spacing: -.03em; }
+    form { margin-top: 28px; display: flex; gap: 10px; max-width: 520px; }
+    input[type="email"] {
+      flex: 1; background: var(--panel); border: 1px solid var(--line);
+      color: var(--ink); padding: 14px 16px; border-radius: 999px; outline: none;
+    }
+    .note { margin-top: 12px; color: var(--mute); font-size: 13px; }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 48px 0 40px;
+      display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px;
+      color: var(--mute); font-size: 14px;
+    }
+    footer strong { display: block; color: var(--ink); margin-bottom: 12px; font-weight: 500; }
+    footer a { display: block; padding: 4px 0; }
+    footer a:hover { color: var(--ink); }
+    .foot-mark { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 600; letter-spacing: .06em; margin-bottom: 14px; }
+    .foot-mark img { width: 26px; }
+
+    @media (max-width: 900px) {
+      nav { grid-template-columns: 1fr auto; }
+      .nav-cta { justify-self: end; }
+      .nav-links { display: none; }
+      .hero, .zone, .zone.reverse, .compare, .trio, .stats, footer, form {
+        grid-template-columns: 1fr; direction: ltr;
+      }
+      .board { grid-template-columns: 1fr 1fr; }
+      .stat + .stat, .split div:last-child { border-left: 0; border-top: 1px solid var(--line); }
+      .cell { border-left: 0; border-top: 0; border-right: 1px solid var(--line); }
+      .cell:nth-child(2n) { border-right: 0; }
+      .cell:nth-child(n+3) { border-top: 1px solid var(--line); }
+      .zone-copy { padding: 48px 24px; }
+      .zone-art { min-height: 280px; }
+      .scene .caption { display: none; }
+      .hero { min-height: auto; padding-top: 12px; align-items: start; overflow: hidden; }
+      .grain { display: none; }
+      .lede { font-size: 16px; max-width: none; }
+      .rings { display: none; }
+      .nav-cta { margin-left: auto; }
+      .hero-actions { flex-direction: column; align-items: stretch; }
+      .hero-actions a { text-align: center; }
+      .scene img { max-width: 100%; }
+      .board { border-radius: 0; }
+      form { flex-direction: column; }
+      input[type="email"] { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .seal-bob, .rings i, .track { animation: none; }
+}
+</style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+<nav>
+    <a class="brand" href="#top"><img src="brand/mark.svg?v=21" alt="" />SEAL</a>
+    <div class="nav-links">
+      <a href="#use">Customers</a>
+      <a href="#hold">How it works</a>
+      <a href="app/">The loop</a>
+      <a href="docs/product.html">Product</a>
+      <a href="docs/api.html">API</a>
+    </div>
+    <a class="nav-cta" href="#access">Request access</a>
+</nav>
+
+  <header class="wrap hero" id="top">
+  <div>
+      <p class="kicker">Delayed capture</p>
+      <h1>The other half of the agent economy</h1>
+      <p class="lede">Buyer agents can already pay. Merchants still cannot counter or settle on performance. SEAL is the hold: a mandate, a signed Counter, and a card authorization that captures only if the terms fail.</p>
+      <div class="hero-actions">
+        <a class="btn-go" href="#access">Request access</a>
+        <a class="btn-ghost" href="app/">Run the first loop</a>
+      </div>
+    </div>
+    <div class="scene">
+      <img class="seal-bob" src="brand/seal.svg?v=21" alt="" />
+  </div>
+  </header>
+
+  <section class="stats" aria-label="Market facts">
+    <div class="stat"><b>15–20%</b><span>Restaurant no-show on the books today</span></div>
+    <div class="stat"><b>3</b><span>Terminal exits: honor, breach, void</span></div>
+    <div class="stat"><b>1</b><span>Intent schema for a person or an agent</span></div>
+    <div class="stat"><b>0</b><span>Merchant agents that can counter and settle</span></div>
+</section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="track">
+      <span>Intent</span><span>Offer</span><span>Counter</span><span>Seal</span>
+      <span>Honor</span><span>Breach</span><span>Void</span>
+      <span>Mandate</span><span>Delayed capture</span>
+      <span>Intent</span><span>Offer</span><span>Counter</span><span>Seal</span>
+      <span>Honor</span><span>Breach</span><span>Void</span>
+      <span>Mandate</span><span>Delayed capture</span>
+    </div>
+  </div>
+
+  <section id="use">
+    <article class="zone">
+      <div class="zone-copy">
+        <p class="kicker">Merchants</p>
+        <h2>A Counter the floor can run tonight</h2>
+        <p>Independent restaurants. No-show 15–20%. Counter is inventory, a window, and a deposit the house can collect against. Night close is three keys: honor, no-show, dispute. Not a POS.</p>
+        <a class="text-go" href="#access">Request access</a>
+      </div>
+      <div class="zone-art" aria-hidden="true"><img src="brand/mark-inverse.svg?v=21" alt="" /></div>
+    </article>
+    <article class="zone reverse ink">
+      <div class="zone-copy">
+        <p class="kicker">Platforms</p>
+        <h2>Keep the customer. Do not custody the hold.</h2>
+        <p>Buyer-side agents cannot be the escrow. You keep the interface. SEAL authorizes on existing card rails, then releases, captures, or voids against the Counter. Neutrality is the product.</p>
+        <a class="text-go" href="#access">Request access</a>
+      </div>
+      <div class="zone-art" aria-hidden="true"><img src="brand/mark-inverse.svg?v=21" alt="" /></div>
+    </article>
+    <article class="zone tile-ink">
+      <div class="zone-copy">
+        <p class="kicker">Principals</p>
+        <h2>The same Intent, whether a person or an agent books</h2>
+        <p>The mandate is a ceiling: party size, time, maximum authorization. A request outside it is never authorized. Humans fill that Intent first so a buyer agent is a new sender, not a new product.</p>
+        <a class="text-go" href="#hold">How it works</a>
+      </div>
+      <div class="zone-art" aria-hidden="true"><img src="brand/mark.svg?v=21" alt="" /></div>
+    </article>
+  </section>
+
+  <section class="wrap hold" id="hold">
+    <p class="kicker">How it works</p>
+    <h2>One table. Six states. Three exits.</h2>
+    <div class="board">
+      <div class="cell"><span class="idx">01</span><b>Intent</b><em>Friday 19:30, two, 30th birthday. Mandate $80.</em></div>
+      <div class="cell"><span class="idx">02</span><b>Offer</b><em>19:45 two-top. Unsigned.</em></div>
+      <div class="cell hot"><span class="idx">03</span><b>Counter</b><em>$40 hold. Seated by 20:00. Signed.</em></div>
+      <div class="cell live"><span class="idx">04</span><b>Seal</b><em>$40 authorized on the card. Not captured.</em></div>
+      <div class="cell"><span class="idx">05</span><b>Honor</b><em>Seated. Authorization released.</em></div>
+      <div class="cell"><span class="idx">06</span><b>Breach</b><em>No-show. $40 captured per Counter.</em></div>
+    </div>
+    <p class="exits">Honor releases. Breach captures. Void reverses the authorization if the house cannot perform or the Intent exceeded the mandate. Funds never sit in a SEAL wallet.</p>
+  </section>
+
+  <section class="trio" id="stack">
+    <div class="card">
+      <span class="idx">01</span>
+      <h3>Mandate</h3>
+      <p>What the principal will allow: covers, window, maximum authorization. The merchant cannot collect above it.</p>
+      </div>
+    <div class="card">
+      <span class="idx">02</span>
+      <h3>Counter</h3>
+      <p>One signed set of merchant terms. Matching is two agents, not a first-come calendar. Settlement executes that Counter only.</p>
+    </div>
+    <div class="card">
+      <span class="idx">03</span>
+      <h3>Settle</h3>
+      <p>Delayed capture on existing card rails. Not a wallet. Performance releases. Non-performance captures. Invalid terms void.</p>
+  </div>
+</section>
+
+  <section class="compare">
+    <div>
+      <p class="kicker">Position</p>
+      <h2>Authorize now. Capture only if the Counter is breached.</h2>
+      <p>Identity names the parties. Card rails move the funds. SEAL sits between: a mandate, a signed Counter, and an authorization that does not capture until those terms resolve. We do not compete with the rails.</p>
+    </div>
+    <div class="split">
+      <div>
+        <small>Card networks</small>
+        <strong>Authorize now. Dispute later.</strong>
+      </div>
+      <div>
+        <small>SEAL</small>
+        <strong>Authorize now. Capture only on breach.</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="access" id="access">
+    <div class="wrap">
+    <p class="kicker">Access</p>
+    <h2>First loop: one sealed table in San Francisco or New York.</h2>
+    <form action="#" method="post" onsubmit="event.preventDefault(); this.querySelector('button').textContent='Received';">
+      <input type="email" name="email" required placeholder="Work email" autocomplete="email" />
+      <button class="btn-go" type="submit">Request access</button>
+    </form>
+    <p class="note">Independent rooms, 40–120 seats. A person can book the same Intent an agent will later send.</p>
+  </div>
+</section>
+
+  <footer class="wrap">
+    <div>
+      <div class="foot-mark"><img src="brand/mark.svg?v=21" alt="" />SEAL</div>
+      <p>Delayed capture for agent-to-merchant commerce.</p>
+    </div>
+    <div>
+      <strong>Customers</strong>
+      <a href="#use">Merchants</a>
+      <a href="#use">Platforms</a>
+      <a href="#use">Principals</a>
+  </div>
+    <div>
+      <strong>Product</strong>
+      <a href="#stack">Mandate</a>
+      <a href="#stack">Counter</a>
+      <a href="#stack">Settle</a>
+    </div>
+    <div>
+      <strong>Company</strong>
+      <a href="#access">Access</a>
+      <a href="deck.html">Deck</a>
+      <a href="mailto:hello@seal.ooo">Contact</a>
+  </div>
+</footer>
+</body>
+</html>
